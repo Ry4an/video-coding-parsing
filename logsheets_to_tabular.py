@@ -3,17 +3,67 @@
 import sys
 import os
 from collections import defaultdict
+import csv
 from openpyxl import load_workbook
-
-FILENAME_LABELS = ['id', 'wave', 'fm', 'initials']
-CODE_ROW_START  = 2
-CODE_ROW_END    = 11  # inclusive
 
 VIDEO_CODE_RANGE = 'A2:C11'
 INTERVALS_RANGE = 'B13:H16'
 
-warnings = defaultdict(list)  # filename -> list(messages)
+OUTPUT_FIELDNAMES = [  # controls order and inclusion
+        'filename',
+        'id',
+        'wave',
+        'fm',
+        'initials',
+        'q1a_code',
+        'q1a_note',
+        'q1b_code',
+        'q1b_note',
+        'q2_code',
+        'q2_note',
+        'q3_code',
+        'q3_note',
+        'q4_code',
+        'q4_note',
+        'q5_code',
+        'q5_note',
+        'q6_code',
+        'q6_note',
+        'q7_code',
+        'q7_note',
+        'q8_code',
+        'q8_note',
+        'q9_code',
+        'q9_note',
+        'interval1_times',
+        'interval1_q10',
+        'interval1_q11',
+        'interval2_times',
+        'interval2_q10',
+        'interval2_q11',
+        'interval3_times',
+        'interval3_q10',
+        'interval3_q11',
+        'interval4_times',
+        'interval4_q10',
+        'interval4_q11',
+        'interval5_times',
+        'interval5_q10',
+        'interval5_q11',
+        'interval6_times',
+        'interval6_q10',
+        'interval6_q11',
+        'interval7_times',
+        'interval7_q10',
+        'interval7_q11',
+]
 
+FILENAME_LABELS = ['id', 'wave', 'fm', 'initials']
+
+out_csv = csv.DictWriter(sys.stdout, OUTPUT_FIELDNAMES, extrasaction='ignore')
+out_csv.writeheader()
+
+warnings = defaultdict(list)  # filename -> list(messages)
 
 def warn_check(expected, cell, filename):
     """add a warning if cell values don't match expected string"""
@@ -64,6 +114,12 @@ for filepath in sys.argv[1:]:
         outrow[f"interval{interval_num}_q10"  ]  = q10
         outrow[f"interval{interval_num}_q11"  ]  = q11
 
-    print(outrow)
+    warn_check(None, sheet['A17'], filename)
+    out_csv.writerow(outrow)
 
-print(warnings)
+if warnings:
+    warnings_csv = csv.writer(sys.stderr)
+    warnings_csv.writerow(['filename', 'warning'])
+    for filename, messages in warnings.items():
+        for message in messages:
+            warnings_csv.writerow([filename, message])
