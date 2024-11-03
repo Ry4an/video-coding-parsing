@@ -7,7 +7,7 @@ import csv
 from openpyxl import load_workbook
 
 VIDEO_CODE_RANGE = 'A2:C11'
-INTERVALS_RANGE = 'B13:H16'
+INTERVALS_RANGE = 'B13:T16'  # up to 19 Intervals, but max seen is 14
 
 OUTPUT_FIELDNAMES = [  # controls order and inclusion
         'filename',
@@ -56,6 +56,27 @@ OUTPUT_FIELDNAMES = [  # controls order and inclusion
         'interval7_times',
         'interval7_q10',
         'interval7_q11',
+        'interval8_times',
+        'interval8_q10',
+        'interval8_q11',
+        'interval9_times',
+        'interval9_q10',
+        'interval9_q11',
+        'interval10_times',
+        'interval10_q10',
+        'interval10_q11',
+        'interval11_times',
+        'interval11_q10',
+        'interval11_q11',
+        'interval12_times',
+        'interval12_q10',
+        'interval12_q11',
+        'interval13_times',
+        'interval13_q10',
+        'interval13_q11',
+        'interval14_times',
+        'interval14_q10',
+        'interval14_q11',
 ]
 
 FILENAME_LABELS = ['id', 'wave', 'fm', 'initials']
@@ -92,29 +113,43 @@ for filepath in sys.argv[1:]:
     warn_check("Question", sheet['A1'], filename)
     warn_check("Code"    , sheet['B1'], filename)
 
-    # get code and note for each of the whole-video questions
-    for row in sheet[VIDEO_CODE_RANGE]:
-        (question, code, note) = [ cell.value for cell in row ]
-        question_num = question.split(".")[0]
-        outrow[f"q{question_num}_code"] = code
-        outrow[f"q{question_num}_note"] = note
+    try:
+        # get code and note for each of the whole-video questions
+        for row in sheet[VIDEO_CODE_RANGE]:
+            (question, code, note) = [ cell.value for cell in row ]
+            question_num = question.split(".")[0]
+            outrow[f"q{question_num}_code"] = code
+            outrow[f"q{question_num}_note"] = note
 
-    # get interval names, times, and questions
-    interval_cells = sheet[INTERVALS_RANGE]
-    warn_check("Interval 1", interval_cells[0][0], filename)
+        # get interval names, times, and questions
+        interval_cells = sheet[INTERVALS_RANGE]
+        warn_check("Interval 1", interval_cells[0][0], filename)
 
-    names = [ cell.value for cell in interval_cells[0] ]
-    times = [ cell.value for cell in interval_cells[1] ]
-    q10s  = [ cell.value for cell in interval_cells[2] ]
-    q11s  = [ cell.value for cell in interval_cells[3] ]
-    for interval in zip(names, times, q10s, q11s):
-        (name, time, q10, q11) = interval
-        interval_num = name.split(" ")[-1]
-        outrow[f"interval{interval_num}_times"] = time
-        outrow[f"interval{interval_num}_q10"  ]  = q10
-        outrow[f"interval{interval_num}_q11"  ]  = q11
+        names = [ cell.value for cell in interval_cells[0] ]
+        times = [ cell.value for cell in interval_cells[1] ]
+        q10s  = [ cell.value for cell in interval_cells[2] ]
+        q11s  = [ cell.value for cell in interval_cells[3] ]
+        for interval in zip(names, times, q10s, q11s):
+            (name, time, q10, q11) = interval
+            if name is None:
+                break
+            try:
+                (label, interval_num) = name.strip().split(" ")
+                if label != "Interval":
+                    warnings[filename].append(f"Non interval label: '{label}'")
+            except ValueError:
+                warnings[filename].append(
+                        f"Skipping unparsable interval label: '{name}'")
+                next
 
-    warn_check(None, sheet['A17'], filename)
+            outrow[f"interval{interval_num}_times"] = time
+            outrow[f"interval{interval_num}_q10"  ]  = q10
+            outrow[f"interval{interval_num}_q11"  ]  = q11
+
+        # SKIP warn_check(None, sheet['A17'], filename)
+    except Exception as ex:
+        warnings[filename].append(f"Failure to parse. {ex} Skipping.")
+
     out_csv.writerow(outrow)
 
 if warnings:
