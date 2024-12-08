@@ -2,6 +2,8 @@
 
 import sys
 import os
+import re
+import datetime
 from collections import defaultdict
 import csv
 from openpyxl import load_workbook
@@ -81,6 +83,8 @@ OUTPUT_FIELDNAMES = [  # controls order and inclusion
 
 FILENAME_LABELS = ['id', 'wave', 'fm', 'initials']
 
+DURATION_CODES = ['1a', '1b', '5', '6']  # values are hh:mm:ss
+
 out_csv = csv.DictWriter(sys.stdout, OUTPUT_FIELDNAMES, extrasaction='ignore')
 out_csv.writeheader()
 
@@ -93,6 +97,7 @@ def warn_check(expected, cell, filename):
     warnings[filename].append(f"'{expected}' expected, but '{cell.value}' "
         + f"found in cell {cell.column_letter}{cell.row}")
 
+DURATION_RE = re.compile(r'^(?:(?P<hours>\d+):)?(?P<minutes>\d?\d)?:(?P<seconds>\d\d)$')
 
 for filepath in sys.argv[1:]:
     filename = os.path.basename(filepath)
@@ -106,6 +111,7 @@ for filepath in sys.argv[1:]:
                 read_only=True)
     except Exception as ex:
         warnings[filename].append(f"Unable to load. {ex} Skipping.")
+        continue
 
     sheet = wb.active
 
@@ -119,6 +125,17 @@ for filepath in sys.argv[1:]:
             (question, code, note) = [ cell.value for cell in row ]
             question_num = question.split(".")[0]
             outrow[f"q{question_num}_code"] = code
+            if question_num in DURATION_CODES:
+                if isinstance(code, datetime.time):
+                    code = f"{code:%H:%M}" # sheets have hours & mins!
+                if (match := DURATION_RE.match(code.strip())) is not None:
+                    outrow[f"q{question_num}_code"] = "{h}:{m:02d}:{s:02d}".format(
+                            h=int(match.group('hours') or 0),
+                            m=int(match.group('minutes') or 0),
+                            s=int(match.group('seconds')))
+                else:
+                    warnings[filename].append(f"Unparsable duration '{code}'"
+                        + f" found in question {question_num}")
             outrow[f"q{question_num}_note"] = note
 
         # get interval names, times, and questions
